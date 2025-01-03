@@ -2,30 +2,56 @@ import type { APIRoute } from "astro";
 import { ChatAnalyzer } from "../../server/services/ChatAnalyzer";
 import { parseMessageData } from "../../server/utils/parser";
 import StorageService from "../../server/services/StorageService";
+import FileStorageService from "../../server/services/FileStorageService";
+import type { MessageData } from "../../server/types";
 
 export const POST: APIRoute = async ({ request }) => {
-  try {
-    const formData = await request.formData();
-    const chatFile = formData.get("chatFile") as File;
-    const platform = formData.get("platform") as string;
+  const { files, platform } = await request.json();
 
-    if (!chatFile || !platform) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+  if (!files?.length || !platform) {
+    return new Response(JSON.stringify({ error: "Missing required fields" }), {
+      status: 400,
+    });
+  }
+
+  try {
+    // Process files one by one and merge the data
+    const mergedData: MessageData = {
+      title: "Merged Chat History",
+      participants: [],
+      messages: [],
+    };
+
+    for (const filePath of files) {
+      const fileBuffer = await FileStorageService.readFile(filePath);
+      const fileData = await parseMessageData(fileBuffer, platform);
+
+      // Merge participants
+      const existingParticipants = new Set(
+        mergedData.participants.map((p) => p.name)
       );
+      fileData.participants.forEach((participant) => {
+        if (!existingParticipants.has(participant.name)) {
+          mergedData.participants.push(participant);
+          existingParticipants.add(participant.name);
+        }
+      });
+
+      // Merge messages
+      mergedData.messages.push(...fileData.messages);
+
+      // Clean up the file
+      await FileStorageService.deleteFile(filePath);
     }
 
-    const messageData = await parseMessageData(chatFile, platform);
-    const analyzer = new ChatAnalyzer(messageData, platform);
+    // Sort messages by timestamp
+    mergedData.messages.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+
+    // Analyze merged data
+    const analyzer = new ChatAnalyzer(mergedData, platform);
     const analysis = analyzer.analyzeMessages();
 
-    // Store the analysis and get ID
+    // Store analysis results
     const id = StorageService.store(analysis);
 
     return new Response(JSON.stringify({ id }), {
@@ -40,12 +66,7 @@ export const POST: APIRoute = async ({ request }) => {
       JSON.stringify({
         error: error instanceof Error ? error.message : "Analysis failed",
       }),
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
+      { status: 500 }
     );
   }
 };

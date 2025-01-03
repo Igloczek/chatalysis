@@ -1,27 +1,22 @@
-import { MessageData } from "../types";
+import type { MessageData } from "../types";
 
 export async function parseMessageData(
-  file: File,
+  input: File | Buffer,
   platform: string
 ): Promise<MessageData> {
-  // Read the file as UTF-8 text
-  const text = await file.text();
+  let jsonData: any;
 
-  // Try to decode any potentially double-encoded UTF-8 content
-  const decodedText = decodeURIComponent(escape(text));
-
-  let rawData;
-  try {
-    rawData = JSON.parse(decodedText);
-  } catch {
-    // If the first attempt fails, try parsing the original text
-    rawData = JSON.parse(text);
+  if (input instanceof File) {
+    const text = await input.text();
+    jsonData = JSON.parse(text);
+  } else {
+    jsonData = JSON.parse(input.toString());
   }
 
   if (platform === "messenger") {
-    return parseMessengerData(rawData);
+    return parseMessengerData(jsonData);
   } else if (platform === "instagram") {
-    return parseInstagramData(rawData);
+    return parseInstagramData(jsonData);
   }
 
   throw new Error("Unsupported platform");
