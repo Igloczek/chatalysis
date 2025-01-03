@@ -60,14 +60,6 @@ interface MonthDistribution {
   count: number;
 }
 
-interface MessageLengthDistribution {
-  "1-5": number;
-  "6-10": number;
-  "11-20": number;
-  "21-50": number;
-  "51+": number;
-}
-
 export interface AnalysisResult {
   title: string;
   platform: "messenger" | "instagram";

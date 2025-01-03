@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import FileStorageService from "../../server/services/FileStorageService";
+import { saveFile } from "@/server/services/storage";
 
 export const POST: APIRoute = async ({ request }) => {
   try {
@@ -13,7 +13,7 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const path = await FileStorageService.saveFile(buffer);
+    const path = await saveFile(buffer);
 
     return new Response(JSON.stringify({ path }), { status: 200 });
   } catch (error) {

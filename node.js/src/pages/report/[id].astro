@@ -1,13 +1,13 @@
 ---
-import Layout from '../../layouts/Layout.astro';
-import StorageService from '../../server/services/StorageService';
+import Layout from '@/layouts/Layout.astro';
+import { getAnalysis } from '@/server/services/storage';
 
 const { id } = Astro.params;
 if (!id) {
   return Astro.redirect('/');
 }
 
-const analysis = StorageService.get(id);
+const analysis = await getAnalysis(id);
 if (!analysis) {
   return Astro.redirect('/');
 }

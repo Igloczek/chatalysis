@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import StorageService from "../../../server/services/StorageService";
+import { getAnalysis } from "@/server/services/storage";
 
 export const GET: APIRoute = async ({ params }) => {
   const id = params.id;
@@ -9,7 +9,7 @@ export const GET: APIRoute = async ({ params }) => {
     });
   }
 
-  const analysis = StorageService.get(id);
+  const analysis = getAnalysis(id);
   if (!analysis) {
     return new Response(JSON.stringify({ error: "Report not found" }), {
       status: 404,
