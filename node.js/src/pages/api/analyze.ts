@@ -5,7 +5,8 @@ import { storeAnalysis, readFile, deleteFile } from "@/server/services/storage";
 import type { APIRoute } from "astro";
 import type { MessageData, Participant } from "@/server/types";
 
-const queue = new PQueue({ concurrency: 1 });
+// Single queue with limited concurrency
+const queue = new PQueue({ concurrency: 2 });
 
 async function processFile({
   filePath,
@@ -20,7 +21,9 @@ async function processFile({
   mergedData: MessageData;
   platform: string;
 }) {
-  console.log(`Processing file: ${filePath}`);
+  console.log(`Starting to process file: ${filePath}`);
+
+  // Read file
   const content = (await readFile(filePath)) as MessageData;
 
   if (!content) {
@@ -28,29 +31,50 @@ async function processFile({
   }
 
   if (!content.participants || !content.messages) {
-    console.log({ content });
+    console.log("Invalid content structure:", { content });
+    return;
   }
 
+  console.log(
+    `File ${filePath} read successfully, processing ${content.messages.length} messages`
+  );
+
   // Merge participants
-  content?.participants?.forEach((participant) => {
+  content.participants.forEach((participant) => {
     if (!participantMap.has(participant.name)) {
       participantMap.set(participant.name, participant);
     }
   });
 
-  // Merge messages, avoiding duplicates
-  content?.messages?.forEach((message) => {
-    const messageId = `${message.timestamp_ms}-${
-      message.sender_name
-    }-${message.content?.slice(0, 50)}`;
+  // Process messages in chunks
+  const CHUNK_SIZE = 1000;
+  const totalChunks = Math.ceil(content.messages.length / CHUNK_SIZE);
 
-    if (!processedMessages.has(messageId)) {
-      mergedData.messages.push(message);
-      processedMessages.add(messageId);
-    }
-  });
+  for (let i = 0; i < content.messages.length; i += CHUNK_SIZE) {
+    const chunkIndex = Math.floor(i / CHUNK_SIZE) + 1;
+    console.log(
+      `Processing chunk ${chunkIndex}/${totalChunks} of file ${filePath}`
+    );
 
-  console.log(`Successfully processed file: ${filePath}`);
+    const messageChunk = content.messages.slice(i, i + CHUNK_SIZE);
+    messageChunk.forEach((message) => {
+      const messageId = `${message.timestamp_ms}-${
+        message.sender_name
+      }-${message.content?.slice(0, 50)}`;
+
+      if (!processedMessages.has(messageId)) {
+        mergedData.messages.push(message);
+        processedMessages.add(messageId);
+      }
+    });
+
+    // Log progress every chunk
+    console.log(
+      `Chunk ${chunkIndex}/${totalChunks} processed. Current total messages: ${mergedData.messages.length}`
+    );
+  }
+
+  console.log(`Finished processing file: ${filePath}`);
   await deleteFile(filePath);
 
   return filePath;
@@ -58,29 +82,22 @@ async function processFile({
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    const body = await request.json();
-    const files = body.files as string[];
-    const platform = body.platform as string;
+    const { files, platform } = await request.json();
+    console.log(`Starting analysis of ${files.length} files`);
 
-    if (!files.length) {
-      return new Response(JSON.stringify({ error: "No files provided" }), {
-        status: 400,
-      });
-    }
-
-    // Initialize merged data structure
+    const processedMessages = new Set<string>();
+    const participantMap = new Map<string, Participant>();
     const mergedData: MessageData = {
-      title: "Merged Chat History",
+      title: "",
       participants: [],
       messages: [],
     };
 
-    const participantMap = new Map<string, Participant>();
-    const processedMessages = new Set<string>();
-
+    // Process files concurrently through the queue
     const results = await Promise.allSettled(
-      files.map((filePath) =>
-        queue.add(() =>
+      files.map((filePath, index) => {
+        console.log(`Queueing file ${index + 1}/${files.length}: ${filePath}`);
+        return queue.add(() =>
           processFile({
             filePath,
             processedMessages,
@@ -88,40 +105,28 @@ export const POST: APIRoute = async ({ request }) => {
             mergedData,
             platform,
           })
-        )
-      )
+        );
+      })
     );
 
-    // Log results
+    // Log any failures
     results.forEach((result, index) => {
       if (result.status === "rejected") {
-        console.error(`Failed to process file ${files[index]}:`, result.reason);
+        console.error(`File ${files[index]} failed:`, result.reason);
       }
     });
 
-    // Convert participant map back to array
+    console.log("All files processed, finalizing analysis...");
     mergedData.participants = Array.from(participantMap.values());
 
-    // Sort messages by timestamp
-    mergedData.messages.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
-
-    if (mergedData.messages.length === 0) {
-      throw new Error("No valid messages found in the provided files");
-    }
-
-    // Analyze merged data
+    console.log("Running analysis...");
     const analysis = await analyzeMessages(mergedData, platform);
 
-    // Store analysis results
+    console.log("Storing analysis results...");
     const id = await storeAnalysis(analysis);
-
-    console.log(`Analysis stored with ID: ${id}`);
 
     return new Response(JSON.stringify({ id }), {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-      },
     });
   } catch (error) {
     console.error("Analysis error:", error);

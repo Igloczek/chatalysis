@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "target": "es2023",
+    "moduleResolution": "node",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
