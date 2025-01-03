@@ -39,6 +39,8 @@ async function processFile({
     `File ${filePath} read successfully, processing ${content.messages.length} messages`
   );
 
+  mergedData.title = content.title;
+
   // Merge participants
   content.participants.forEach((participant) => {
     if (!participantMap.has(participant.name)) {
