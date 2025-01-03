@@ -1,0 +1,151 @@
+---
+import Layout from '../layouts/Layout.astro';
+import StorageService from '../server/services/StorageService';
+
+// Get the report ID from URL
+const id = Astro.url.searchParams.get('id');
+if (!id) {
+  return Astro.redirect('/');
+}
+
+// Get the analysis data
+const analysis = StorageService.get(id);
+if (!analysis) {
+  return Astro.redirect('/');
+}
+
+// Helper function for month names
+const getMonthName = (month: number) => {
+  return new Date(2000, month).toLocaleString('default', { month: 'long' });
+};
+---
+
+<Layout title={analysis.title}>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="bg-white shadow-xl rounded-lg">
+      <!-- Report Header -->
+      <div class="px-8 py-6 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+        <h1 class="text-3xl font-bold text-gray-900">{analysis.title}</h1>
+        <p class="mt-2 text-sm text-gray-500">
+          Analysis from {analysis.dateRange.from} to {analysis.dateRange.to}
+        </p>
+      </div>
+
+      <!-- Report Content -->
+      <div class="p-8 space-y-8">
+        <!-- Overview Section -->
+        <section>
+          <h2 class="text-2xl font-semibold mb-4">Overview</h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-blue-50 p-6 rounded-lg">
+              <p class="text-sm text-blue-600 uppercase">Total Messages</p>
+              <p class="text-3xl font-bold text-blue-900">{analysis.totalMessages}</p>
+            </div>
+            <div class="bg-green-50 p-6 rounded-lg">
+              <p class="text-sm text-green-600 uppercase">Messages per Day</p>
+              <p class="text-3xl font-bold text-green-900">
+                {Math.round(analysis.averageMessagesPerDay)}
+              </p>
+            </div>
+            <div class="bg-purple-50 p-6 rounded-lg">
+              <p class="text-sm text-purple-600 uppercase">Total Files</p>
+              <p class="text-3xl font-bold text-purple-900">{analysis.files.total}</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Participants Section -->
+        <section>
+          <h2 class="text-2xl font-semibold mb-4">Participants</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {analysis.participants.map(participant => (
+              <div class="bg-gray-50 rounded-lg p-6">
+                <h3 class="text-xl font-semibold mb-3">{participant.name}</h3>
+                <div class="space-y-3">
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Messages</span>
+                    <span class="font-medium">{participant.messageCount}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Avg. Message Length</span>
+                    <span class="font-medium">{Math.round(participant.averageMessageLength)} chars</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Reactions</span>
+                    <span class="font-medium">
+                      Given: {participant.reactionsGiven} / Received: {participant.reactionsReceived}
+                    </span>
+                  </div>
+                  
+                  {participant.mostUsedEmojis?.length > 0 && (
+                    <div class="mt-4">
+                      <p class="text-sm text-gray-600 mb-2">Most Used Emojis</p>
+                      <div class="flex flex-wrap gap-2">
+                        {participant.mostUsedEmojis.slice(0, 5).map(emoji => (
+                          <span class="text-2xl">{emoji.emoji}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <!-- Time Analysis -->
+        <section>
+          <h2 class="text-2xl font-semibold mb-4">Time Analysis</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Messages by Hour -->
+            <div class="bg-gray-50 rounded-lg p-6">
+              <h3 class="text-lg font-medium mb-4">Activity by Hour</h3>
+              <div class="space-y-2">
+                {analysis.messagesByHour.map(hour => {
+                  const maxCount = Math.max(...analysis.messagesByHour.map(h => h.count));
+                  const width = (hour.count / maxCount) * 100;
+                  return (
+                    <div class="flex items-center">
+                      <span class="w-12 text-gray-600">{hour.hour}:00</span>
+                      <div class="flex-1 ml-4">
+                        <div 
+                          class="bg-blue-200 rounded-full h-4" 
+                          style={`width: ${width}%`}
+                        />
+                      </div>
+                      <span class="ml-4 text-gray-600">{hour.count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <!-- Messages by Month -->
+            <div class="bg-gray-50 rounded-lg p-6">
+              <h3 class="text-lg font-medium mb-4">Activity by Month</h3>
+              <div class="space-y-2">
+                {analysis.messagesByMonth.map(month => {
+                  const maxCount = Math.max(...analysis.messagesByMonth.map(m => m.count));
+                  const width = (month.count / maxCount) * 100;
+                  return (
+                    <div class="flex items-center">
+                      <span class="w-24 text-gray-600">{getMonthName(month.month)}</span>
+                      <div class="flex-1 ml-4">
+                        <div 
+                          class="bg-green-200 rounded-full h-4" 
+                          style={`width: ${width}%`}
+                        />
+                      </div>
+                      <span class="ml-4 text-gray-600">{month.count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Files Section -->
+        <section>
+          <h2 class="text-2xl font-semibold mb-4">Files Shared</h2>
+          <div class="grid grid-cols-1 md:gri

@@ -1,0 +1,11 @@
+---
+import Layout from '../layouts/Layout.astro';
+import ProfilePictureManager from '../client/components/ProfilePictureManager.vue';
+---
+
+<Layout title="Chatalysis - Settings">
+  <main>
+    <h1>Settings</h1>
+    <ProfilePictureManager client:load />
+  </main>
+</Layout> 
