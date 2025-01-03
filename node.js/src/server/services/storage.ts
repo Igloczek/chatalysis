@@ -58,17 +58,17 @@ export async function deleteAnalysis(id: string): Promise<boolean> {
   }
 }
 
-export async function readFile(
-  filePath: string
-): Promise<Record<string, any> | null> {
+export async function readFile(filename: string) {
+  const filePath = path.join(FILES_DIR, filename);
   try {
-    const fullPath = path.join(FILES_DIR, filePath);
-    const data = await fs.readFile(fullPath, "utf8");
-    return JSON.parse(data, (key, value) =>
+    const data = await fs.readFile(filePath, "utf8");
+    const content = JSON.parse(data, (key, value) =>
       key === "title" ? decodeString(value) : value
-    ) as Record<string, any>;
+    );
+
+    return content;
   } catch (error) {
-    console.error(`Error reading file ${filePath}:`, error);
+    console.error(`Error reading file ${filename}:`, error);
     return null;
   }
 }
