@@ -9,7 +9,6 @@ import type { AnalysisResult } from "@/server/types";
 const storage = createStorage({
   driver: fsDriver({
     base: path.join(process.cwd(), "data"),
-    ignore: [".*"],
   }),
 });
 
@@ -18,7 +17,7 @@ function toStorageKey(id: string, type: "analysis" | "files"): string {
 }
 
 export async function storeAnalysis(analysis: AnalysisResult): Promise<string> {
-  const id = `${uuidv4()}.json`;
+  const id = uuidv4();
   await storage.setItem(toStorageKey(id, "analysis"), JSON.stringify(analysis));
   return id;
 }
@@ -26,7 +25,11 @@ export async function storeAnalysis(analysis: AnalysisResult): Promise<string> {
 export async function getAnalysis(id: string): Promise<AnalysisResult | null> {
   try {
     const data = await storage.getItem(toStorageKey(id, "analysis"));
-    if (!data) return null;
+
+    if (!data) {
+      throw new Error(`Analysis not found for id: ${id}`);
+    }
+
     return data as AnalysisResult;
   } catch (error) {
     console.error(`Error retrieving analysis ${id}:`, error);
@@ -50,7 +53,9 @@ export async function readFile(
   try {
     const data = await storage.getItem(toStorageKey(filePath, "files"));
 
-    if (!data) return null;
+    if (!data) {
+      throw new Error(`File not found for id: ${filePath}`);
+    }
 
     if (typeof data === "string") {
       return JSON.parse(data) as Record<string, any>;

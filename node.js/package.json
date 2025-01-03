@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "name": "chatalysis",
   "version": "1.0.0",
   "description": "Chat analysis tool for Facebook Messenger and Instagram",

@@ -4,12 +4,12 @@ import { getAnalysis } from '@/server/services/storage';
 
 const { id } = Astro.params;
 if (!id) {
-  return Astro.redirect('/');
+  throw new Error("No id provided");
 }
 
 const analysis = await getAnalysis(id);
 if (!analysis) {
-  return Astro.redirect('/');
+  throw new Error(`Analysis not found for id: ${id}`);
 }
 
 // Convert messagesByHour from object to array if needed
