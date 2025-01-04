@@ -3,10 +3,10 @@ import { analyzeMessages } from "@/server/services/message-analyzer";
 import { storeAnalysis, readFile, deleteFile } from "@/server/services/storage";
 
 import type { APIRoute } from "astro";
-import type { MessageData, Message, Participant } from "@/server/types";
+import type { MessageData } from "@/server/types";
 
-// Queue with larger batch size
-const queue = new PQueue({ concurrency: 8 });
+// More aggressive parallelization for I/O operations
+const queue = new PQueue({ concurrency: 16 });
 
 export const POST: APIRoute = async ({ request }) => {
   const routeStart = performance.now();

@@ -7,10 +7,9 @@ import { extractEmojis } from "@/server/utils/emoji";
 import type { DataFrame as DfDataFrame } from "danfojs-node";
 import type { MessageData, AnalysisResult, Message } from "@/server/types";
 
-const CHUNK_SIZE = 5000; // Increased chunk size for better performance
-const PARALLEL_CHUNKS = 4; // Number of chunks to process in parallel
+const CHUNK_SIZE = 2000;
+const PARALLEL_CHUNKS = 8;
 
-// Pre-allocated arrays for batch processing
 const processingQueue = new PQueue({ concurrency: PARALLEL_CHUNKS });
 
 function* chunkArray<T>(array: T[], size: number): Generator<T[], void> {
